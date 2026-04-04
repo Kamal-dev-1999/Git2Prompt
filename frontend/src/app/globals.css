@@ -1,0 +1,321 @@
+@import "tailwindcss";
+
+/* ==============================
+   NEOBRUTALISM DESIGN TOKENS
+   Inspired by neobrutalism.dev
+   ============================== */
+
+:root {
+  /* Core Colors */
+  --background: #FEF9C3;
+  --foreground: #000000;
+  --main: #FACC15;
+  --main-foreground: #000000;
+  --secondary-background: #E0F2FE;
+  --accent: #A3E635;
+  --accent-foreground: #000000;
+  --border: #000000;
+  --ring: #000000;
+  --overlay: rgba(0, 0, 0, 0.6);
+
+  /* Neo-Brutalism Geometry */
+  --border-radius: 5px;
+  --box-shadow-x: 4px;
+  --box-shadow-y: 4px;
+  --reverse-box-shadow-x: -4px;
+  --reverse-box-shadow-y: -4px;
+  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+  --shadow-md: 6px 6px 0px 0px var(--border);
+  --shadow-lg: 8px 8px 0px 0px var(--border);
+}
+
+/* Dark Mode */
+.dark {
+  --background: #1a1a2e;
+  --foreground: #f0f0f0;
+  --main: #FACC15;
+  --main-foreground: #000000;
+  --secondary-background: #16213e;
+  --border: #f0f0f0;
+  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+  --shadow-md: 6px 6px 0px 0px var(--border);
+  --shadow-lg: 8px 8px 0px 0px var(--border);
+}
+
+/* Tailwind v4 Theme Registration */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-main: var(--main);
+  --color-main-foreground: var(--main-foreground);
+  --color-secondary-background: var(--secondary-background);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-overlay: var(--overlay);
+
+  /* Custom shadows */
+  --shadow-shadow: var(--shadow);
+  --shadow-shadow-md: var(--shadow-md);
+  --shadow-shadow-lg: var(--shadow-lg);
+
+  /* Custom radius */
+  --radius-base: var(--border-radius);
+
+  /* Translate for button press effect */
+  --translate-boxShadowX: var(--box-shadow-x);
+  --translate-boxShadowY: var(--box-shadow-y);
+  --translate-reverseBoxShadowX: var(--reverse-box-shadow-x);
+  --translate-reverseBoxShadowY: var(--reverse-box-shadow-y);
+
+  /* Typography */
+  --font-heading: "Space Mono", "Courier New", monospace;
+  --font-base: "Inter", sans-serif;
+  --font-mono: "Space Mono", "Courier New", monospace;
+}
+
+/* ========================
+   BASE STYLES
+   ======================== */
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-base);
+  -webkit-font-smoothing: auto;
+}
+
+/* Raw scrollbar styling */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+  border-left: 2px solid var(--border);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--main);
+  border: 2px solid var(--border);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground);
+}
+
+/* Selection styling */
+::selection {
+  background: var(--main);
+  color: var(--main-foreground);
+}
+
+/* ========================
+   MARQUEE ANIMATION
+   ======================== */
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+/* ========================
+   CONSOLE CURSOR BLINK
+   ======================== */
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* ========================
+   BLOCK SPINNER
+   ======================== */
+
+@keyframes spin-block {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(90deg); }
+  50% { transform: rotate(180deg); }
+  75% { transform: rotate(270deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin-block {
+  animation: spin-block 1.2s steps(4) infinite;
+}
+
+/* ========================
+   TOAST SLIDE IN/OUT
+   ======================== */
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out-right {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+.animate-slide-out {
+  animation: slide-out-right 0.3s ease-in forwards;
+}
+
+/* ========================
+   TYPEWRITER EFFECT
+   ======================== */
+
+@keyframes typewriter-line {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* ========================
+   MARKDOWN PROSE STYLES
+   ======================== */
+
+.prose-neo h1,
+.prose-neo h2,
+.prose-neo h3,
+.prose-neo h4 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  color: var(--foreground);
+}
+
+.prose-neo h1 { font-size: 1.75rem; }
+.prose-neo h2 { font-size: 1.375rem; border-bottom: 2px solid var(--border); padding-bottom: 0.25em; }
+.prose-neo h3 { font-size: 1.125rem; }
+
+.prose-neo p {
+  margin: 0.75em 0;
+  line-height: 1.75;
+}
+
+.prose-neo ul,
+.prose-neo ol {
+  padding-left: 1.5em;
+  margin: 0.75em 0;
+}
+
+.prose-neo li {
+  margin: 0.25em 0;
+}
+
+.prose-neo code {
+  font-family: var(--font-mono);
+  background: var(--secondary-background);
+  border: 1px solid var(--border);
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+  border-radius: var(--border-radius);
+}
+
+.prose-neo pre {
+  background: #0d1117;
+  color: #e6edf3;
+  border: 2px solid var(--border);
+  border-radius: var(--border-radius);
+  padding: 1em;
+  overflow-x: auto;
+  margin: 1em 0;
+  box-shadow: var(--shadow);
+}
+
+.prose-neo pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+.prose-neo blockquote {
+  border-left: 4px solid var(--main);
+  padding-left: 1em;
+  margin: 1em 0;
+  font-style: italic;
+  background: var(--secondary-background);
+  padding: 0.75em 1em;
+  border: 2px solid var(--border);
+  border-left: 6px solid var(--main);
+}
+
+.prose-neo table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  border: 2px solid var(--border);
+}
+
+.prose-neo th,
+.prose-neo td {
+  border: 2px solid var(--border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.prose-neo th {
+  background: var(--main);
+  color: var(--main-foreground);
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+.prose-neo a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+}
+
+.prose-neo a:hover {
+  background: var(--main);
+  color: var(--main-foreground);
+}
+
+.prose-neo hr {
+  border: none;
+  border-top: 2px solid var(--border);
+  margin: 2em 0;
+}
+
+.prose-neo strong {
+  font-weight: 800;
+}
