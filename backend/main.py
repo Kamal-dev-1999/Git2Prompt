@@ -290,8 +290,16 @@ async def analyze_repository(request: AnalyzeRequest):
 
 
 # ================================
-# Health Check
+# Health Check & Root
 # ================================
+
+@app.get("/")
+async def root():
+    return {
+        "message": "RepoBlueprint Backend is running!",
+        "status": "online",
+        "endpoints": ["/api/analyze", "/api/health"]
+    }
 
 @app.get("/api/health")
 async def health_check():
