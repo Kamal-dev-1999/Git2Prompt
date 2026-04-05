@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { Copy, Check, FileText, ArrowLeft } from "lucide-react";
+import { Copy, Check, FileText, ArrowLeft, Download } from "lucide-react";
 import { NeoButton } from "@/components/ui/NeoButton";
 import {
   NeoCard,
@@ -28,11 +28,19 @@ export default function PromptOutput({
 }: PromptOutputProps) {
   const [copied, setCopied] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState("BLUEPRINT COPIED TO CLIPBOARD!");
+
+  const handleDownloadPDF = () => {
+    // We use window.print() to get the browser to generate a high quality, 100% textual/selectable PDF.
+    // CSS @media print is used to hide the rest of the UI.
+    window.print();
+  };
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(markdown);
       setCopied(true);
+      setToastMsg("BLUEPRINT COPIED TO CLIPBOARD!");
       setShowToast(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -44,6 +52,7 @@ export default function PromptOutput({
       document.execCommand("copy");
       document.body.removeChild(textArea);
       setCopied(true);
+      setToastMsg("BLUEPRINT COPIED TO CLIPBOARD!");
       setShowToast(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -59,7 +68,13 @@ export default function PromptOutput({
             ANALYZE ANOTHER
           </NeoButton>
 
-          <NeoButton
+          <div className="flex items-center gap-3">
+            <NeoButton variant="neutral" size="lg" onClick={handleDownloadPDF}>
+              <Download className="w-5 h-5" strokeWidth={3} />
+              DOWNLOAD PDF
+            </NeoButton>
+
+            <NeoButton
             variant={copied ? "noShadow" : "default"}
             size="lg"
             onClick={handleCopy}
@@ -78,9 +93,11 @@ export default function PromptOutput({
             )}
           </NeoButton>
         </div>
+        </div>
 
         {/* Output card */}
-        <NeoCard className="shadow-shadow-md">
+        <div id="blueprint-content">
+          <NeoCard className="shadow-shadow-md">
           <CardHeader className="bg-accent border-b-2 border-border rounded-t-base">
             <CardTitle className="text-accent-foreground text-xl flex items-center gap-2">
               <FileText className="w-5 h-5" strokeWidth={3} />
@@ -133,6 +150,7 @@ export default function PromptOutput({
             </div>
           </CardContent>
         </NeoCard>
+        </div>
 
         {/* Word count */}
         <div className="mt-4 text-center font-mono text-xs tracking-wider opacity-50">
@@ -142,7 +160,7 @@ export default function PromptOutput({
       </div>
 
       <NeoToast
-        message="BLUEPRINT COPIED TO CLIPBOARD!"
+        message={toastMsg}
         show={showToast}
         onClose={() => setShowToast(false)}
       />

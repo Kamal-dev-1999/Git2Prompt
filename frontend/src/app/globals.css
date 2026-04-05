@@ -319,3 +319,45 @@ body {
 .prose-neo strong {
   font-weight: 800;
 }
+
+/* ========================
+   PRINT TO PDF STYLES
+   ======================== */
+@media print {
+  /* Hide all UI elements entirely */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Make only the blueprint content visible */
+  #blueprint-content, #blueprint-content * {
+    visibility: visible;
+  }
+  
+  #blueprint-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Strip Neo-Brutalist elements (hard shadows/thick borders) to make text readable and copyable */
+  .shadow-shadow-md {
+    box-shadow: none !important;
+  }
+  
+  /* Force syntax highlighting code blocks to flow and break pages gracefully */
+  pre, code, div {
+    page-break-inside: avoid;
+    white-space: pre-wrap !important;
+  }
+
+  /* Remove background from code to ensure text is visible on typical white print */
+  .prose-neo pre {
+    background: transparent !important;
+    color: #000 !important;
+    border: 1px solid #ccc !important;
+  }
+}
