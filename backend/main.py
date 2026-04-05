@@ -38,10 +38,18 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS — allow local Next.js frontend
+# CORS — allow local Next.js frontend and deployed domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://git2-prompt.vercel.app",
+        "https://git2-prompt-git-main-kamal-tripathis-projects.vercel.app",
+        "https://git2-prompt-3t8hppxmk-kamal-tripathis-projects.vercel.app",
+        "https://kamal.software",
+        "https://www.kamal.software",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
