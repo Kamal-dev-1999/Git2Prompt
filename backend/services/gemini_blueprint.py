@@ -71,7 +71,7 @@ def generate_blueprint_sync(
     Returns the complete blueprint as a string.
     """
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-pro",
+        model_name="gemini-3.1-flash-lite-preview",
         system_instruction=BLUEPRINT_SYSTEM_INSTRUCTION,
         generation_config={
             "temperature": 0.3,

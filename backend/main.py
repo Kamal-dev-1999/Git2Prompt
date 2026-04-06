@@ -10,8 +10,15 @@ import asyncio
 from typing import Optional
 
 import httpx
+import logging
 
-from fastapi import FastAPI, HTTPException
+# Configure basic console logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+import time
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -88,11 +95,26 @@ def sse_event(event: str, data: dict) -> str:
 
 
 # ================================
+# Rate Limiter definitions
+# ================================
+RATE_LIMIT_WINDOW = 600  # 10 minutes
+MAX_REQUESTS = 3
+ip_request_counts = {}
+
+def is_rate_limited(ip: str) -> bool:
+    now = time.time()
+    # Clean up old timestamps
+    timestamps = [t for t in ip_request_counts.get(ip, []) if now - t < RATE_LIMIT_WINDOW]
+    timestamps.append(now)
+    ip_request_counts[ip] = timestamps
+    return len(timestamps) > MAX_REQUESTS
+
+# ================================
 # SSE Analysis Endpoint
 # ================================
 
 @app.post("/api/analyze")
-async def analyze_repository(request: AnalyzeRequest):
+async def analyze_repository(request: Request, body: AnalyzeRequest):
     """
     Analyze a GitHub repository and stream progress via SSE.
 
@@ -102,9 +124,24 @@ async def analyze_repository(request: AnalyzeRequest):
       - error: { message }
       - done: {}
     """
+    # Check By-Pass Header
+    user_gemini_key = request.headers.get("x-user-gemini-key", "").strip()
+
+    # Rate Limiting
+    client_ip = request.client.host if request.client else "unknown"
+    if not user_gemini_key and is_rate_limited(client_ip):
+        logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "Rate limit exceeded",
+                "message": "Too many requests. Please wait or use your own API key to bypass."
+            }
+        )
+
     # Validate GitHub URL
     try:
-        owner, repo = parse_github_url(request.repo_url)
+        owner, repo = parse_github_url(body.repo_url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -202,13 +239,13 @@ async def analyze_repository(request: AnalyzeRequest):
             })
             await asyncio.sleep(0.2)
 
-            # Step 5: Generate blueprint via Gemini
-            if not GEMINI_API_KEY:
-                # Mock mode when no API key is set
+            effective_key = user_gemini_key if user_gemini_key else GEMINI_API_KEY
+            if not effective_key:
+                # Mock mode when no API key is set at all
                 yield sse_event("progress", {
                     "step": "AI_MOCK",
                     "message": "[AI] GEMINI API KEY NOT SET — USING MOCK MODE",
-                    "detail": "Set GEMINI_API_KEY in .env to enable real analysis",
+                    "detail": "Set GEMINI_API_KEY in .env or provide your personal key to enable real analysis",
                 })
                 await asyncio.sleep(0.5)
 
@@ -217,7 +254,22 @@ async def analyze_repository(request: AnalyzeRequest):
                 yield sse_event("done", {})
                 return
 
-            configure_gemini(GEMINI_API_KEY)
+            if user_gemini_key:
+                yield sse_event("progress", {
+                    "step": "AI_USER_KEY",
+                    "message": "[AI] USING PERSONAL API KEY -> RATE LIMITS BYPASSED",
+                    "detail": "Your private Gemini API key is powering this analysis.",
+                })
+            else:
+                logger.info(f"Analysis triggered using SERVER API KEY for repo {owner}/{repo}")
+                yield sse_event("progress", {
+                    "step": "AI_SERVER_KEY",
+                    "message": "[AI] USING SERVER API KEY -> STANDARD RATE LIMITS APPLY",
+                    "detail": f"Server Key Loaded. Wait time applies after {MAX_REQUESTS} requests.",
+                })
+            await asyncio.sleep(0.3)
+            
+            configure_gemini(effective_key)
 
             yield sse_event("progress", {
                 "step": "AI_ACTIVATED",
@@ -245,7 +297,17 @@ async def analyze_repository(request: AnalyzeRequest):
                     yield sse_event("blueprint_chunk", {"chunk": chunk})
 
             except Exception as gemini_error:
-                # Fallback to sync if streaming fails
+                error_str = str(gemini_error).lower()
+                if "api key" in error_str or "unauthorized" in error_str or "400" in error_str or "401" in error_str or "key" in error_str:
+                    logger.error(f"Invalid API Key encountered! ({'PERSONAL' if user_gemini_key else 'SERVER'} KEY) - Error: {str(gemini_error)}")
+                    yield sse_event("error", {
+                        "message": f"[ERROR] 401 Unauthorized: Invalid Gemini API Key. Please click the Settings gear to check your Private Key.",
+                        "code": 401
+                    })
+                    return
+
+                # Fallback to sync if streaming fails for other reasons
+                logger.warning(f"Streaming failed, switching to sync mode: {str(gemini_error)}")
                 yield sse_event("progress", {
                     "step": "AI_FALLBACK",
                     "message": "[AI] SWITCHING TO SYNC MODE...",
@@ -268,12 +330,15 @@ async def analyze_repository(request: AnalyzeRequest):
 
             yield sse_event("blueprint", {"content": full_blueprint})
             yield sse_event("done", {})
+            logger.info("Analysis completed successfully.")
 
         except httpx_errors as e:
+            logger.error(f"GitHub API Error: {str(e)}")
             yield sse_event("error", {
                 "message": f"GitHub API error: {str(e)}"
             })
         except Exception as e:
+            logger.error(f"Unexpected Analysis Exception: {str(e)}", exc_info=True)
             yield sse_event("error", {
                 "message": f"Analysis failed: {str(e)}"
             })

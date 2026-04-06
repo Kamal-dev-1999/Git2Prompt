@@ -12,7 +12,8 @@ import AnalysisConsole, {
 import PromptOutput from "@/components/PromptOutput";
 import { NeoButton } from "@/components/ui/NeoButton";
 import { NeoCard, CardContent } from "@/components/ui/NeoCard";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw, Settings } from "lucide-react";
+import SettingsCard from "@/components/SettingsCard";
 
 type AppState = "idle" | "analyzing" | "complete" | "error";
 
@@ -45,15 +46,29 @@ export default function Home() {
       analyzeAbortRef.current = abortController;
 
       try {
+        const userGeminiKey = localStorage.getItem("repo_blueprint_user_key");
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (userGeminiKey) {
+          headers["x-user-gemini-key"] = userGeminiKey;
+        }
+
         const response = await fetch("/api/analyze", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ repoUrl }),
           signal: abortController.signal,
         });
 
         if (!response.ok) {
-          const errData = await response.json();
+          const errData = await response.json().catch(() => ({}));
+          
+          if (response.status === 429) {
+            throw new Error(`[429] Rate limit exceeded. ${errData.message || 'Please wait or enter your personal API key.'}`);
+          }
+          if (response.status === 401) {
+            throw new Error(`[401] Unauthorized. ${errData.message || 'Your personal API key may be invalid.'}`);
+          }
+          
           throw new Error(errData.error || `HTTP ${response.status}`);
         }
 
@@ -99,6 +114,9 @@ export default function Home() {
                 setBlueprint(eventData.content);
                 setAppState("complete");
               } else if (eventType === "error") {
+                if (eventData.code === 401) {
+                  throw new Error(`[401] Unauthorized: ${eventData.message}`);
+                }
                 throw new Error(eventData.message);
               } else if (eventType === "done") {
                 // Stream finished
@@ -160,6 +178,7 @@ export default function Home() {
           <>
             <HeroSection />
             <RepoSearch onAnalyze={handleAnalyze} />
+            <SettingsCard />
             <div className="mt-12">
               <AnalysisConsole logs={logs} isActive={false} />
             </div>
@@ -208,17 +227,34 @@ export default function Home() {
                 </span>
               </div>
               <CardContent className="pt-6">
-                <p className="font-mono text-sm mb-4 bg-red-50 border-2 border-border p-4 rounded-base">
+                <p className="font-mono text-sm mb-4 bg-red-50 border-2 border-border p-4 rounded-base text-black font-bold">
                   {errorMessage || "An unexpected error occurred."}
                 </p>
-                <NeoButton
-                  onClick={handleReset}
-                  className="w-full"
-                  size="lg"
-                >
-                  <RotateCcw className="w-5 h-5" strokeWidth={3} />
-                  TRY AGAIN
-                </NeoButton>
+                <div className="flex gap-4 w-full">
+                  <NeoButton
+                    onClick={handleReset}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    <RotateCcw className="w-5 h-5" strokeWidth={3} />
+                    TRY AGAIN
+                  </NeoButton>
+                  
+                  {(errorMessage.includes("429") || errorMessage.includes("401") || errorMessage.includes("API Key")) && (
+                    <NeoButton
+                      variant="neutral"
+                      onClick={() => {
+                        handleReset();
+                        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                      }}
+                      className="flex-none px-4"
+                      size="lg"
+                      title="Enter Personal Key"
+                    >
+                      <Settings className="w-5 h-5" strokeWidth={3} />
+                    </NeoButton>
+                  )}
+                </div>
               </CardContent>
             </NeoCard>
           </div>

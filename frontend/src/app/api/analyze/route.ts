@@ -14,13 +14,22 @@ export async function POST(req: NextRequest) {
     // Call the FastAPI backend
     const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8000";
     
+    // Extract custom user key if present
+    const userGeminiKey = req.headers.get("x-user-gemini-key");
+
     // We fetch the SSE stream from the FastAPI backend
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+    };
+
+    if (userGeminiKey) {
+      headers["x-user-gemini-key"] = userGeminiKey;
+    }
+
     const response = await fetch(`${backendUrl}/api/analyze`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
-      },
+      headers,
       body: JSON.stringify({ repo_url: repoUrl }),
     });
 

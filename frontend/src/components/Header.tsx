@@ -1,9 +1,18 @@
 "use client";
 
-import React from "react";
-import { Cpu } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Cpu, ShieldCheck } from "lucide-react";
 
 export default function Header() {
+  const [hasKey, setHasKey] = useState(false);
+
+  useEffect(() => {
+    const checkKey = () => setHasKey(!!localStorage.getItem("repo_blueprint_user_key"));
+    checkKey();
+    window.addEventListener("api-key-updated", checkKey);
+    return () => window.removeEventListener("api-key-updated", checkKey);
+  }, []);
+
   const marqueeText =
     "REPRODUCIBILITY ENGINE // REPOBLUEPRINT ◆ REPRODUCIBILITY ENGINE // REPOBLUEPRINT ◆ ";
 
@@ -33,7 +42,16 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Status block */}
+        {/* Status blocks */}
+        {hasKey && (
+          <div className="flex items-center gap-2 px-3 bg-[#FACC15] text-black h-full border-l-4 border-border shrink-0">
+            <ShieldCheck className="w-4 h-4" strokeWidth={3} />
+            <span className="font-heading font-bold text-xs tracking-wider hidden md:inline">
+              KEY ACTIVE
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 px-4 bg-accent text-accent-foreground h-full border-l-4 border-border shrink-0">
           <div className="w-2 h-2 bg-foreground rounded-full" />
           <span className="font-heading text-xs font-bold tracking-wider hidden md:inline">
