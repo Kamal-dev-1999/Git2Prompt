@@ -26,7 +26,10 @@ export default function SettingsCard() {
     if (trimmed) {
       localStorage.setItem("repo_blueprint_user_key", trimmed);
       setIsSaved(true);
-      setToastMsg("KEY SAVED LOCALLY");
+      
+      const company = trimmed.startsWith("sk-or-") ? "OPENROUTER" : "GEMINI";
+      setToastMsg(`${company} KEY SAVED`);
+      
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2500);
       
@@ -55,10 +58,10 @@ export default function SettingsCard() {
           </div>
           <div>
             <h3 className="font-heading font-black text-xl tracking-tight uppercase text-black">
-              BYOK: Personal API Key
+              BYOK: Personal AI Key
             </h3>
             <p className="font-mono text-xs text-black/80 font-bold">
-              Bypass server rate limits by bringing your own Gemini API Key.
+              Bypass server rate limits by bringing your own Gemini or OpenRouter Key.
             </p>
           </div>
         </div>
@@ -66,11 +69,11 @@ export default function SettingsCard() {
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1 w-full relative group">
             <label className="block font-heading font-bold text-sm tracking-wider mb-2 text-black">
-              GEMINI API KEY (STORED LOCALLY)
+              AI API KEY (GEMINI OR OPENROUTER)
             </label>
             <NeoInput
               type="password"
-              placeholder="AIzaSy..."
+              placeholder="AIzaSy... or sk-or-..."
               value={apiKey}
               onChange={(e) => {
                 setApiKey(e.target.value);

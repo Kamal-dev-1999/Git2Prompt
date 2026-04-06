@@ -31,6 +31,7 @@ from services.gemini_blueprint import (
     generate_blueprint_stream,
     generate_blueprint_sync,
 )
+from services import openrouter_blueprint
 
 # Load environment variables
 load_dotenv(override=True)
@@ -254,28 +255,50 @@ async def analyze_repository(request: Request, body: AnalyzeRequest):
                 yield sse_event("done", {})
                 return
 
-            if user_gemini_key:
+            # Step 5: Choose AI engine based on Key Prefix
+            engine_type = "GEMINI"
+            model_name = "gemini-1.5-pro"
+            base_url = ""
+            
+            if effective_key.startswith("sk-or-"):
+                engine_type = "OPENROUTER"
+                model_name = "openrouter/auto"
+                base_url = "https://openrouter.ai/api/v1"
+            elif effective_key.startswith("sk-"):
+                engine_type = "OPENAI"
+                model_name = "gpt-4o"
+                base_url = "https://api.openai.com/v1"
+
+            is_custom = bool(user_gemini_key)
+
+            if engine_type == "OPENROUTER" or engine_type == "OPENAI":
+                logger.info(f"{engine_type} key detected. Routing to {model_name}.")
                 yield sse_event("progress", {
-                    "step": "AI_USER_KEY",
-                    "message": "[AI] USING PERSONAL API KEY -> RATE LIMITS BYPASSED",
-                    "detail": "Your private Gemini API key is powering this analysis.",
+                    "step": "AI_USER_KEY" if is_custom else "AI_SERVER_KEY",
+                    "message": f"[AI] USING {'PERSONAL' if is_custom else 'SERVER'} {engine_type} KEY -> {'RATE LIMITS BYPASSED' if is_custom else 'STANDARD LIMITS APPLY'}",
+                    "detail": f"{'Your private' if is_custom else 'Server'} API key is powering this analysis.",
+                })
+                await asyncio.sleep(0.3)
+                
+                yield sse_event("progress", {
+                    "step": "AI_ACTIVATED",
+                    "message": f"[AI] {model_name.upper()} ENGINE: ACTIVATED",
+                    "detail": f"Context: {total_tokens:,} tokens received. Engine: {engine_type}",
                 })
             else:
-                logger.info(f"Analysis triggered using SERVER API KEY for repo {owner}/{repo}")
                 yield sse_event("progress", {
-                    "step": "AI_SERVER_KEY",
-                    "message": "[AI] USING SERVER API KEY -> STANDARD RATE LIMITS APPLY",
-                    "detail": f"Server Key Loaded. Wait time applies after {MAX_REQUESTS} requests.",
+                    "step": "AI_USER_KEY" if is_custom else "AI_SERVER_KEY",
+                    "message": f"[AI] USING {'PERSONAL' if is_custom else 'SERVER'} GEMINI KEY -> {'RATE LIMITS BYPASSED' if is_custom else 'STANDARD LIMITS APPLY'}",
+                    "detail": f"{'Your private' if is_custom else 'Server'} API key is powering this analysis.",
                 })
-            await asyncio.sleep(0.3)
-            
-            configure_gemini(effective_key)
-
-            yield sse_event("progress", {
-                "step": "AI_ACTIVATED",
-                "message": "[AI] GEMINI 1.5 PRO ENGINE: ACTIVATED",
-                "detail": f"Context: {total_tokens:,} tokens / 2,000,000 capacity",
-            })
+                await asyncio.sleep(0.3)
+                
+                configure_gemini(effective_key)
+                yield sse_event("progress", {
+                    "step": "AI_ACTIVATED",
+                    "message": "[AI] GEMINI 1.5 PRO ENGINE: ACTIVATED",
+                    "detail": f"Context: {total_tokens:,} tokens / 2,000,000 capacity",
+                })
             await asyncio.sleep(0.2)
 
             yield sse_event("progress", {
@@ -284,42 +307,77 @@ async def analyze_repository(request: Request, body: AnalyzeRequest):
                 "detail": "This may take 30-120 seconds for large repos",
             })
 
-            # Stream blueprint from Gemini
+            # Stream blueprint from chosen engine
             full_blueprint = ""
             try:
-                async for chunk in generate_blueprint_stream(
-                    source_context=context_result["context"],
-                    repo_name=repo_name,
-                    repo_description=repo_desc,
-                    repo_language=repo_lang,
-                ):
-                    full_blueprint += chunk
-                    yield sse_event("blueprint_chunk", {"chunk": chunk})
+                if engine_type == "OPENROUTER" or engine_type == "OPENAI":
+                    async for chunk in openrouter_blueprint.generate_blueprint_stream(
+                        source_context=context_result["context"],
+                        repo_name=repo_name,
+                        repo_description=repo_desc,
+                        repo_language=repo_lang,
+                        api_key=effective_key,
+                        base_url=base_url,
+                        model=model_name,
+                    ):
+                        full_blueprint += chunk
+                        yield sse_event("blueprint_chunk", {"chunk": chunk})
+                else:
+                    async for chunk in generate_blueprint_stream(
+                        source_context=context_result["context"],
+                        repo_name=repo_name,
+                        repo_description=repo_desc,
+                        repo_language=repo_lang,
+                    ):
+                        full_blueprint += chunk
+                        yield sse_event("blueprint_chunk", {"chunk": chunk})
 
-            except Exception as gemini_error:
-                error_str = str(gemini_error).lower()
-                if "api key" in error_str or "unauthorized" in error_str or "400" in error_str or "401" in error_str or "key" in error_str:
-                    logger.error(f"Invalid API Key encountered! ({'PERSONAL' if user_gemini_key else 'SERVER'} KEY) - Error: {str(gemini_error)}")
+            except Exception as engine_error:
+                error_str = str(engine_error).lower()
+                
+                # Check explicitly for OpenRouter limits (404 No Endpoints)
+                if engine_type == "OPENROUTER" and "404" in error_str and "endpoints" in error_str:
+                    logger.error(f"OpenRouter Credit/ZDR error caught. Error: {str(engine_error)}")
                     yield sse_event("error", {
-                        "message": f"[ERROR] 401 Unauthorized: Invalid Gemini API Key. Please click the Settings gear to check your Private Key.",
+                        "message": f"[ERROR] OpenRouter 404: No endpoints found for Claude 3.5 Sonnet. This usually means your OpenRouter account has insufficient credits ($0 balance), or your OpenRouter Privacy (ZDR) settings are blocking this model.",
+                        "code": 402
+                    })
+                    return
+                
+                # Catch invalid keys across Gemini and OpenAI
+                if "api key" in error_str or "unauthorized" in error_str or "400" in error_str or "401" in error_str or "key" in error_str or "auth" in error_str:
+                    logger.error(f"Invalid API Key encountered! ({engine_type} KEY) - Error: {str(engine_error)}")
+                    yield sse_event("error", {
+                        "message": f"[ERROR] API Authentication Failed ({engine_type}): Please check the Settings gear to verify your Private Key. Server message: {str(engine_error)}",
                         "code": 401
                     })
                     return
 
                 # Fallback to sync if streaming fails for other reasons
-                logger.warning(f"Streaming failed, switching to sync mode: {str(gemini_error)}")
+                logger.warning(f"Streaming failed, switching to sync mode: {str(engine_error)}")
                 yield sse_event("progress", {
                     "step": "AI_FALLBACK",
                     "message": "[AI] SWITCHING TO SYNC MODE...",
-                    "detail": str(gemini_error),
+                    "detail": str(engine_error),
                 })
 
-                full_blueprint = generate_blueprint_sync(
-                    source_context=context_result["context"],
-                    repo_name=repo_name,
-                    repo_description=repo_desc,
-                    repo_language=repo_lang,
-                )
+                if engine_type == "OPENROUTER" or engine_type == "OPENAI":
+                    full_blueprint = await openrouter_blueprint.generate_blueprint_sync(
+                        source_context=context_result["context"],
+                        repo_name=repo_name,
+                        repo_description=repo_desc,
+                        repo_language=repo_lang,
+                        api_key=effective_key,
+                        base_url=base_url,
+                        model=model_name,
+                    )
+                else:
+                    full_blueprint = generate_blueprint_sync(
+                        source_context=context_result["context"],
+                        repo_name=repo_name,
+                        repo_description=repo_desc,
+                        repo_language=repo_lang,
+                    )
 
             yield sse_event("progress", {
                 "step": "COMPLETE",
