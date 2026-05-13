@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Mono, Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const spaceMono = Space_Mono({
@@ -49,6 +49,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
