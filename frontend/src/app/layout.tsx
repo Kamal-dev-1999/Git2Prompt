@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Mono, Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const spaceMono = Space_Mono({
@@ -46,6 +47,7 @@ export default function RootLayout({
     <html lang="en" className={`${spaceMono.variable} ${inter.variable}`}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
+        <Analytics />
       </body>
     </html>
   );

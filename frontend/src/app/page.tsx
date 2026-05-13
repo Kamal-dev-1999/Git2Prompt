@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useCallback, useRef } from "react";
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
@@ -125,8 +124,8 @@ export default function Home() {
             }
           }
         }
-      } catch (err: any) {
-        if (err.name === "AbortError") {
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") {
           addLog("SYS", "ANALYSIS ABORTED BY USER", "error");
         } else {
           throw err;
@@ -147,7 +146,7 @@ export default function Home() {
 
       try {
         await runRealAnalysis(repoUrl);
-      } catch (err: any) {
+      } catch (err: unknown) {
         setErrorMessage(
           err instanceof Error ? err.message : "UNKNOWN ERROR OCCURRED"
         );

@@ -1,25 +1,24 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { KeyRound, Check, X } from "lucide-react";
 import { NeoButton } from "@/components/ui/NeoButton";
 import { NeoInput } from "@/components/ui/NeoInput";
 import NeoToast from "@/components/NeoToast";
 
+const getStoredApiKey = () => {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return localStorage.getItem("repo_blueprint_user_key") ?? "";
+};
+
 export default function SettingsCard() {
-  const [apiKey, setApiKey] = useState("");
-  const [isSaved, setIsSaved] = useState(false);
+  const [apiKey, setApiKey] = useState(() => getStoredApiKey());
+  const [isSaved, setIsSaved] = useState(() => Boolean(getStoredApiKey()));
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
-
-  useEffect(() => {
-    // Load existing key from localStorage
-    const saved = localStorage.getItem("repo_blueprint_user_key");
-    if (saved) {
-      setApiKey(saved);
-      setIsSaved(true);
-    }
-  }, []);
 
   const handleSave = () => {
     const trimmed = apiKey.trim();
